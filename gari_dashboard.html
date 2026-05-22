@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gari Farm Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0e1012; --bg2: #161a1d; --bg3: #1d2226;
+    --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+    --text: #e8e6e1; --text2: #8a8882; --text3: #555350;
+    --green: #4ade9a; --blue: #4a9ede; --orange: #e8824a;
+    --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; min-height: 100vh; padding: 2rem; }
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 0.5px solid var(--border); }
+  .farm-label { font-family: var(--mono); font-size: 10px; color: var(--green); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 6px; }
+  h1 { font-size: 26px; font-weight: 300; color: var(--text); letter-spacing: -0.02em; }
+  .status-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .status-text { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+  .refresh-btn { font-family: var(--mono); font-size: 11px; color: var(--text2); background: var(--bg3); border: 0.5px solid var(--border2); padding: 8px 16px; border-radius: 6px; cursor: pointer; letter-spacing: 0.05em; transition: color 0.15s, border-color 0.15s; }
+  .refresh-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 2rem; }
+  .metric { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 10px; padding: 1.25rem; position: relative; overflow: hidden; }
+  .metric::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); }
+  .metric-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+  .metric-value { font-size: 32px; font-weight: 300; color: var(--text); letter-spacing: -0.03em; line-height: 1; }
+  .metric-unit { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 6px; }
+  .metric-accent { color: var(--green); }
+  .chart-section { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 12px; }
+  .chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 8px; }
+  .chart-title { font-family: var(--mono); font-size: 11px; color: var(--text2); letter-spacing: 0.08em; text-transform: uppercase; }
+  .legend { display: flex; flex-wrap: wrap; gap: 12px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .legend-line { width: 16px; height: 2px; flex-shrink: 0; }
+  .legend-dashed { width: 16px; height: 2px; flex-shrink: 0; background: repeating-linear-gradient(90deg, #4a9ede 0, #4a9ede 4px, transparent 4px, transparent 7px); }
+  .chart-wrap { position: relative; width: 100%; height: 260px; }
+  .chart-wrap-sm { position: relative; width: 100%; height: 200px; }
+  .footer { margin-top: 2rem; padding-top: 1rem; border-top: 0.5px solid var(--border); font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.08em; display: flex; justify-content: space-between; }
+  .metric-blue { color: var(--blue); }
+  .zones-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  .zones-table th { color: var(--text3); font-weight: 400; text-align: left; padding: 0 12px 10px 0; letter-spacing: 0.08em; font-size: 10px; text-transform: uppercase; border-bottom: 0.5px solid var(--border); }
+  .zones-table td { padding: 10px 12px 10px 0; border-bottom: 0.5px solid var(--border); color: var(--text2); vertical-align: middle; }
+  .zones-table tr:last-child td { border-bottom: none; }
+  .zones-table td:first-child { color: var(--text); }
+  .zone-badge { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; vertical-align: middle; }
+  .param-box { background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 6px; padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--text2); margin-bottom: 1.25rem; }
+  .param-box strong { color: var(--green); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="farm-label">Gari farm systems</div>
+    <h1>Blueberry dashboard</h1>
+    <div class="status-row">
+      <div class="status-dot"></div>
+      <span class="status-text" id="last-updated">Connecting to Supabase...</span>
+    </div>
+  </div>
+  <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+</div>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="metric-label">Watering today</div>
+    <div class="metric-value metric-accent" id="total-today">—</div>
+    <div class="metric-unit">minutes</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Active zones</div>
+    <div class="metric-value" id="zone-count">—</div>
+    <div class="metric-unit">today</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Events today</div>
+    <div class="metric-value" id="event-count">—</div>
+    <div class="metric-unit">start / finish cycles</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Temp max today</div>
+    <div class="metric-value" id="temp-max">—</div>
+    <div class="metric-unit">°C</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Humidity</div>
+    <div class="metric-value" id="humidity">—</div>
+    <div class="metric-unit">%</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Watering tier</div>
+    <div class="metric-value" id="tier" style="font-size:18px; margin-top:6px;">—</div>
+    <div class="metric-unit" id="tier-label">—</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Water used today</div>
+    <div class="metric-value metric-blue" id="water-liters">—</div>
+    <div class="metric-unit">litres</div>
+  </div>
+  <div class="metric">
+    <div class="metric-label">Water this week</div>
+    <div class="metric-value" id="water-week">—</div>
+    <div class="metric-unit">litres</div>
+  </div>
+</div>
+
+<!-- WATERING BY ZONE (from irrigation_events) -->
+<div class="chart-section">
+  <div class="chart-header">
+    <div class="chart-title">Daily watering — minutes per zone</div>
+    <div class="legend" id="legend-watering"></div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="wateringChart" role="img" aria-label="Stacked bar chart showing daily watering minutes per zone">Loading watering data.</canvas>
+  </div>
+</div>
+
+<!-- TEMPERATURE -->
+<div class="chart-section">
+  <div class="chart-header">
+    <div class="chart-title">Temperature history</div>
+    <div class="legend">
+      <span class="legend-item">
+        <span class="legend-line" style="background:#e8824a;"></span>Max °C
+      </span>
+      <span class="legend-item">
+        <span class="legend-dashed"></span>Min °C
+      </span>
+    </div>
+  </div>
+  <div class="chart-wrap-sm">
+    <canvas id="weatherChart" role="img" aria-label="Line chart showing daily min and max temperature">Loading weather data.</canvas>
+  </div>
+</div>
+
+<!-- ZONES TABLE -->
+<div class="chart-section">
+  <div class="chart-header">
+    <div class="chart-title">Zone breakdown — today</div>
+  </div>
+  <div class="param-box">
+    Rate: <strong>10 L / min</strong> &nbsp;·&nbsp; adjust <code>LITERS_PER_MIN</code> in script to change
+  </div>
+  <table class="zones-table">
+    <thead>
+      <tr>
+        <th>Zone</th>
+        <th>Cycles</th>
+        <th>Minutes</th>
+        <th>Litres used</th>
+        <th>Last watered</th>
+      </tr>
+    </thead>
+    <tbody id="zones-tbody">
+      <tr><td colspan="5" style="color:var(--text3); padding: 1.5rem 0;">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer">
+  <span>Gari farm bot — blueberry irrigation system</span>
+  <span id="footer-time"></span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const SUPABASE_URL = 'https://fhyfckbapnboxiqnvilc.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZoeWZja2JhcG5ib3hpcW52aWxjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNTE1NDUsImV4cCI6MjA5NDkyNzU0NX0.4-oYgAaaAVnGrOZbJBOggHdbnqsICMHjjjsXqiz_6Hw';
+
+// =============================================
+// GLOBAL PARAMETER — change this to adjust
+// how many litres per minute each zone uses
+// =============================================
+const LITERS_PER_MIN = 10;
+
+const ZONE_COLORS = ['#4ade9a','#4a9ede','#e8824a','#c084fc','#f472b6','#facc15'];
+
+let wateringChartInst = null;
+let weatherChartInst = null;
+
+async function fetchTable(table, query) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+  });
+  return res.json();
+}
+
+function getLast7Days() {
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  return days;
+}
+
+function formatDate(d) {
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+}
+
+async function loadData() {
+  document.getElementById('last-updated').textContent = 'Loading...';
+  const days = getLast7Days();
+  const fromDate = days[0];
+
+  const [events, weatherLogs] = await Promise.all([
+    fetchTable('irrigation_events', `created_at=gte.${fromDate}T00:00:00&event_type=eq.finished&order=created_at.asc`),
+    fetchTable('weather_logs', `created_at=gte.${fromDate}T00:00:00&report_type=eq.morning&order=created_at.asc`)
+  ]);
+
+  buildMetrics(events, weatherLogs);
+  buildWateringChart(events, days);
+  buildWeatherChart(weatherLogs, days);
+  buildZonesTable(events, days);
+
+  const now = new Date();
+  document.getElementById('last-updated').textContent = 'Updated ' + now.toLocaleTimeString();
+  document.getElementById('footer-time').textContent = now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function buildMetrics(events, weatherLogs) {
+  const today = new Date().toISOString().split('T')[0];
+  const todayEvents = events.filter(e => e.created_at.startsWith(today));
+
+  const totalSeconds = todayEvents.reduce((s, e) => s + (e.duration_seconds || 0), 0);
+  const totalMins = Math.round(totalSeconds / 60);
+  document.getElementById('total-today').textContent = totalMins;
+  document.getElementById('water-liters').textContent = (totalMins * LITERS_PER_MIN).toLocaleString();
+
+  const weekSeconds = events.reduce((s, e) => s + (e.duration_seconds || 0), 0);
+  const weekMins = Math.round(weekSeconds / 60);
+  document.getElementById('water-week').textContent = (weekMins * LITERS_PER_MIN).toLocaleString();
+
+  const zones = [...new Set(todayEvents.map(e => e.zone_name))];
+  document.getElementById('zone-count').textContent = zones.length;
+  document.getElementById('event-count').textContent = todayEvents.length;
+
+  const latest = weatherLogs[weatherLogs.length - 1];
+  if (latest) {
+    document.getElementById('temp-max').textContent = latest.temp_max != null ? latest.temp_max.toFixed(1) : '—';
+    document.getElementById('humidity').textContent = latest.humidity || '—';
+    document.getElementById('tier').textContent = latest.watering_tier || '—';
+    document.getElementById('tier-label').textContent = 'watering advice';
+  }
+}
+
+function buildZonesTable(events, days) {
+  const today = new Date().toISOString().split('T')[0];
+  const todayEvents = events.filter(e => e.created_at.startsWith(today));
+  const zones = [...new Set(events.map(e => e.zone_name))];
+
+  if (zones.length === 0) {
+    document.getElementById('zones-tbody').innerHTML =
+      '<tr><td colspan="5" style="color:var(--text3); padding:1.5rem 0;">No zone activity today.</td></tr>';
+    return;
+  }
+
+  const rows = zones.map((zone, i) => {
+    const zoneEvents = todayEvents.filter(e => e.zone_name === zone);
+    const cycles = zoneEvents.length;
+    const totalSecs = zoneEvents.reduce((s, e) => s + (e.duration_seconds || 0), 0);
+    const mins = Math.round(totalSecs / 60);
+    const litres = (mins * LITERS_PER_MIN).toLocaleString();
+    const lastEvent = zoneEvents[zoneEvents.length - 1];
+    const lastTime = lastEvent
+      ? new Date(lastEvent.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      : '—';
+    const color = ZONE_COLORS[i % ZONE_COLORS.length];
+    return `<tr>
+      <td><span class="zone-badge" style="background:${color}"></span>${zone}</td>
+      <td>${cycles}</td>
+      <td>${mins} min</td>
+      <td style="color:var(--blue)">${litres} L</td>
+      <td>${lastTime}</td>
+    </tr>`;
+  });
+
+  // Totals row
+  const totalMins = zones.reduce((s, zone) => {
+    const secs = todayEvents.filter(e => e.zone_name === zone).reduce((ss, e) => ss + (e.duration_seconds || 0), 0);
+    return s + Math.round(secs / 60);
+  }, 0);
+
+  rows.push(`<tr style="border-top: 0.5px solid var(--border2);">
+    <td style="color:var(--text3); font-size:10px; letter-spacing:0.08em;">TOTAL</td>
+    <td></td>
+    <td style="color:var(--text)">${totalMins} min</td>
+    <td style="color:var(--green)">${(totalMins * LITERS_PER_MIN).toLocaleString()} L</td>
+    <td></td>
+  </tr>`);
+
+  document.getElementById('zones-tbody').innerHTML = rows.join('');
+}
+
+function buildWateringChart(events, days) {
+  // Group finished events by date and zone, sum duration_seconds
+  const zones = [...new Set(events.map(e => e.zone_name))];
+
+  const dayTotals = {};
+  events.forEach(e => {
+    const day = e.created_at.split('T')[0];
+    if (!dayTotals[day]) dayTotals[day] = {};
+    dayTotals[day][e.zone_name] = (dayTotals[day][e.zone_name] || 0) + (e.duration_seconds || 0);
+  });
+
+  const datasets = zones.map((zone, i) => ({
+    label: zone,
+    data: days.map(day => {
+      const secs = (dayTotals[day] && dayTotals[day][zone]) || 0;
+      return Math.round(secs / 60);
+    }),
+    borderColor: ZONE_COLORS[i % ZONE_COLORS.length],
+    backgroundColor: ZONE_COLORS[i % ZONE_COLORS.length] + '18',
+    tension: 0.4,
+    fill: false,
+    pointRadius: 5,
+    pointBackgroundColor: ZONE_COLORS[i % ZONE_COLORS.length],
+    pointBorderColor: '#0e1012',
+    pointBorderWidth: 2
+  }));
+
+  // Build legend
+  document.getElementById('legend-watering').innerHTML = zones.map((z, i) =>
+    `<span class="legend-item">
+      <span class="legend-dot" style="background:${ZONE_COLORS[i % ZONE_COLORS.length]}"></span>${z}
+    </span>`
+  ).join('');
+
+  if (wateringChartInst) wateringChartInst.destroy();
+
+  wateringChartInst = new Chart(document.getElementById('wateringChart'), {
+    type: 'line',
+    data: {
+      labels: days.map(formatDate),
+      datasets: datasets.length ? datasets : [{ label: 'No data', data: days.map(() => 0), backgroundColor: '#2a2e32' }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: '#555350', font: { family: 'DM Mono', size: 11 }, autoSkip: false },
+          grid: { display: false },
+          border: { color: 'rgba(255,255,255,0.07)' }
+        },
+        y: {
+          ticks: { color: '#555350', font: { family: 'DM Mono', size: 11 }, callback: v => v + ' min' },
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function buildWeatherChart(weatherLogs, days) {
+  const logByDay = {};
+  weatherLogs.forEach(r => { logByDay[r.created_at.split('T')[0]] = r; });
+
+  if (weatherChartInst) weatherChartInst.destroy();
+
+  weatherChartInst = new Chart(document.getElementById('weatherChart'), {
+    type: 'line',
+    data: {
+      labels: days.map(formatDate),
+      datasets: [
+        {
+          label: 'Max °C',
+          data: days.map(d => logByDay[d] ? logByDay[d].temp_max : null),
+          borderColor: '#e8824a',
+          tension: 0.4,
+          fill: false,
+          pointRadius: 4,
+          pointBackgroundColor: '#e8824a',
+          pointBorderColor: '#0e1012',
+          pointBorderWidth: 2
+        },
+        {
+          label: 'Min °C',
+          data: days.map(d => logByDay[d] ? logByDay[d].temp_min : null),
+          borderColor: '#4a9ede',
+          tension: 0.4,
+          fill: false,
+          pointRadius: 4,
+          pointBackgroundColor: '#4a9ede',
+          pointBorderColor: '#0e1012',
+          pointBorderWidth: 2,
+          borderDash: [4, 3]
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      spanGaps: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: '#555350', font: { family: 'DM Mono', size: 11 }, autoSkip: false },
+          grid: { display: false },
+          border: { color: 'rgba(255,255,255,0.07)' }
+        },
+        y: {
+          ticks: { color: '#555350', font: { family: 'DM Mono', size: 11 }, callback: v => v + '°C' },
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          border: { display: false }
+        }
+      }
+    }
+  });
+}
+
+loadData();
+</script>
+</body>
+</html>
