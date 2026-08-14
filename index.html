@@ -25,6 +25,18 @@
   .status-text { font-family: var(--mono); font-size: 11px; color: var(--text2); }
   .refresh-btn { font-family: var(--mono); font-size: 11px; color: var(--text2); background: var(--bg3); border: 0.5px solid var(--border2); padding: 8px 16px; border-radius: 6px; cursor: pointer; letter-spacing: 0.05em; transition: color 0.15s, border-color 0.15s; }
   .refresh-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+  .report-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 1.25rem; }
+  .period-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .period-btn, .nav-btn, .apply-btn { font-family: var(--mono); font-size: 11px; color: var(--text2); background: var(--bg2); border: 0.5px solid var(--border2); padding: 8px 12px; border-radius: 6px; cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+  .period-btn:hover, .nav-btn:hover, .apply-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+  .period-btn.active { color: var(--bg); background: var(--green); border-color: var(--green); }
+  .nav-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .date-range { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-left: auto; }
+  .date-range input { color-scheme: dark; font-family: var(--mono); font-size: 11px; color: var(--text2); background: var(--bg2); border: 0.5px solid var(--border2); padding: 7px 9px; border-radius: 6px; }
+  .date-separator { color: var(--text3); }
+  .report-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -0.25rem 0 1rem; }
+  .report-period { font-size: 18px; font-weight: 300; }
+  .report-meta { font-family: var(--mono); font-size: 10px; color: var(--text3); text-align: right; }
   .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 2rem; }
   .metric { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 10px; padding: 1.25rem; position: relative; overflow: hidden; }
   .metric::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent); }
@@ -52,6 +64,14 @@
   .zone-badge { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 8px; vertical-align: middle; }
   .param-box { background: var(--bg3); border: 0.5px solid var(--border2); border-radius: 6px; padding: 10px 14px; display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--text2); margin-bottom: 1.25rem; }
   .param-box strong { color: var(--green); }
+  @media (max-width: 760px) {
+    body { padding: 1rem; }
+    .header { align-items: center; }
+    .date-range { margin-left: 0; width: 100%; }
+    .date-range input { flex: 1; min-width: 125px; }
+    .report-heading { align-items: flex-start; flex-direction: column; }
+    .report-meta { text-align: left; }
+  }
 </style>
 </head>
 <body>
@@ -68,29 +88,51 @@
   <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
 </div>
 
+<div class="report-controls" aria-label="Report period controls">
+  <button class="nav-btn" id="previous-period" type="button" title="Previous period">←</button>
+  <div class="period-presets">
+    <button class="period-btn" data-period="today" type="button">Today</button>
+    <button class="period-btn active" data-period="7days" type="button">7 days</button>
+    <button class="period-btn" data-period="month" type="button">This month</button>
+    <button class="period-btn" data-period="year" type="button">This year</button>
+  </div>
+  <button class="nav-btn" id="next-period" type="button" title="Next period">→</button>
+  <div class="date-range">
+    <input type="date" id="date-from" aria-label="Report start date">
+    <span class="date-separator">to</span>
+    <input type="date" id="date-to" aria-label="Report end date">
+    <button class="apply-btn" id="apply-range" type="button">Apply</button>
+  </div>
+</div>
+
+<div class="report-heading">
+  <div class="report-period" id="report-period">Last 7 days</div>
+  <div class="report-meta" id="report-meta">Daily view</div>
+</div>
+
 <div class="metrics">
   <div class="metric">
-    <div class="metric-label">Watering today</div>
+    <div class="metric-label" id="watering-label">Watering — selected period</div>
     <div class="metric-value metric-accent" id="total-today">—</div>
     <div class="metric-unit">minutes</div>
   </div>
   <div class="metric">
     <div class="metric-label">Active zones</div>
     <div class="metric-value" id="zone-count">—</div>
-    <div class="metric-unit">today</div>
+    <div class="metric-unit">selected period</div>
   </div>
   <div class="metric">
-    <div class="metric-label">Events today</div>
+    <div class="metric-label">Irrigation cycles</div>
     <div class="metric-value" id="event-count">—</div>
     <div class="metric-unit">start / finish cycles</div>
   </div>
   <div class="metric">
-    <div class="metric-label">Temp max today</div>
+    <div class="metric-label">Maximum temperature</div>
     <div class="metric-value" id="temp-max">—</div>
     <div class="metric-unit">°C</div>
   </div>
   <div class="metric">
-    <div class="metric-label">Humidity</div>
+    <div class="metric-label">Average humidity</div>
     <div class="metric-value" id="humidity">—</div>
     <div class="metric-unit">%</div>
   </div>
@@ -100,21 +142,21 @@
     <div class="metric-unit" id="tier-label">—</div>
   </div>
   <div class="metric">
-    <div class="metric-label">Water used today</div>
+    <div class="metric-label">Water used</div>
     <div class="metric-value metric-blue" id="water-liters">—</div>
     <div class="metric-unit">litres</div>
   </div>
   <div class="metric">
-    <div class="metric-label">Water this week</div>
+    <div class="metric-label">Average per day</div>
     <div class="metric-value" id="water-week">—</div>
-    <div class="metric-unit">litres</div>
+    <div class="metric-unit">litres / day</div>
   </div>
 </div>
 
 <!-- WATERING BY ZONE (from irrigation_events) -->
 <div class="chart-section">
   <div class="chart-header">
-    <div class="chart-title">Daily watering — minutes per zone</div>
+    <div class="chart-title" id="watering-chart-title">Daily watering — minutes per zone</div>
     <div class="legend" id="legend-watering"></div>
   </div>
   <div class="chart-wrap">
@@ -143,7 +185,7 @@
 <!-- ZONES TABLE -->
 <div class="chart-section">
   <div class="chart-header">
-    <div class="chart-title">Zone breakdown — today</div>
+    <div class="chart-title" id="zones-title">Zone breakdown — selected period</div>
   </div>
   <div class="param-box">
     Rate: <strong>10 L / min</strong> &nbsp;·&nbsp; adjust <code>LITERS_PER_MIN</code> in script to change
@@ -184,98 +226,203 @@ const ZONE_COLORS = ['#4ade9a','#4a9ede','#e8824a','#c084fc','#f472b6','#facc15'
 
 let wateringChartInst = null;
 let weatherChartInst = null;
+const REPORT_TIME_ZONE = 'Europe/Sofia';
+const PAGE_SIZE = 1000;
+let reportState = { preset: '7days', start: '', end: '' };
 
-async function fetchTable(table, query) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
-  });
-  return res.json();
+function pad(value) { return String(value).padStart(2, '0'); }
+function toDateKey(date) { return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`; }
+function fromDateKey(key) { const [y, m, d] = key.split('-').map(Number); return new Date(y, m - 1, d, 12); }
+function addDays(key, amount) { const d = fromDateKey(key); d.setDate(d.getDate() + amount); return toDateKey(d); }
+function todayKey() {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: REPORT_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+function eventDateKey(timestamp) {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: REPORT_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(timestamp));
+  const value = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+function daysBetween(start, end) { return Math.round((fromDateKey(end) - fromDateKey(start)) / 86400000) + 1; }
+function eachDay(start, end) {
+  const result = [];
+  for (let key = start; key <= end; key = addDays(key, 1)) result.push(key);
+  return result;
+}
+function formatDate(key, options = { month: 'short', day: 'numeric' }) {
+  return fromDateKey(key).toLocaleDateString('en-GB', options);
+}
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 }
 
-function getLast7Days() {
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
+async function fetchAllRows(table, query) {
+  const rows = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Range': `${offset}-${offset + PAGE_SIZE - 1}`
+      }
+    });
+    if (!res.ok) throw new Error(`${table}: ${res.status} ${res.statusText}`);
+    const page = await res.json();
+    if (!Array.isArray(page)) throw new Error(`${table}: unexpected response`);
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return rows;
   }
-  return days;
 }
 
-function formatDate(d) {
-  return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+function rangeForPreset(preset, anchor = todayKey()) {
+  const d = fromDateKey(anchor);
+  if (preset === 'today') return { start: anchor, end: anchor };
+  if (preset === '7days') return { start: addDays(anchor, -6), end: anchor };
+  if (preset === 'month') {
+    const end = toDateKey(new Date(d.getFullYear(), d.getMonth() + 1, 0, 12));
+    return { start: toDateKey(new Date(d.getFullYear(), d.getMonth(), 1, 12)), end: end > todayKey() ? todayKey() : end };
+  }
+  if (preset === 'year') {
+    const end = `${d.getFullYear()}-12-31`;
+    return { start: `${d.getFullYear()}-01-01`, end: end > todayKey() ? todayKey() : end };
+  }
+  return { start: reportState.start, end: reportState.end };
 }
+
+function setReportRange(start, end, preset = 'custom') {
+  reportState = { preset, start, end };
+  document.getElementById('date-from').value = start;
+  document.getElementById('date-to').value = end;
+  document.querySelectorAll('.period-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.period === preset));
+  document.getElementById('next-period').disabled = end >= todayKey();
+}
+
+function shiftPeriod(direction) {
+  const { preset, start, end } = reportState;
+  if (preset === 'month') {
+    const d = fromDateKey(start); d.setMonth(d.getMonth() + direction);
+    const range = rangeForPreset('month', toDateKey(d)); setReportRange(range.start, range.end, preset);
+  } else if (preset === 'year') {
+    const year = Number(start.slice(0, 4)) + direction;
+    const range = rangeForPreset('year', `${year}-01-01`); setReportRange(range.start, range.end, preset);
+  } else {
+    const span = daysBetween(start, end); setReportRange(addDays(start, span * direction), addDays(end, span * direction), preset);
+  }
+  loadData();
+}
+
+function getBuckets(start, end) {
+  const count = daysBetween(start, end);
+  const mode = count <= 62 ? 'day' : count <= 180 ? 'week' : 'month';
+  const buckets = [];
+  if (mode === 'day') eachDay(start, end).forEach(key => buckets.push({ key, start: key, end: key, label: formatDate(key) }));
+  if (mode === 'week') {
+    for (let key = start; key <= end; key = addDays(key, 7)) {
+      const bucketEnd = addDays(key, 6) > end ? end : addDays(key, 6);
+      buckets.push({ key, start: key, end: bucketEnd, label: formatDate(key) });
+    }
+  }
+  if (mode === 'month') {
+    let cursor = fromDateKey(start); cursor = new Date(cursor.getFullYear(), cursor.getMonth(), 1, 12);
+    while (toDateKey(cursor) <= end) {
+      const monthStart = toDateKey(cursor);
+      const monthEnd = toDateKey(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0, 12));
+      buckets.push({ key: monthStart.slice(0, 7), start: monthStart < start ? start : monthStart, end: monthEnd > end ? end : monthEnd, label: formatDate(monthStart, { month: 'short', year: '2-digit' }) });
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1, 12);
+    }
+  }
+  return { mode, buckets };
+}
+
+function bucketForDate(dateKey, buckets) { return buckets.find(b => dateKey >= b.start && dateKey <= b.end); }
 
 async function loadData() {
-  document.getElementById('last-updated').textContent = 'Loading...';
-  const days = getLast7Days();
-  const fromDate = days[0];
-
-  const [events, weatherLogs] = await Promise.all([
-    fetchTable('irrigation_events', `created_at=gte.${fromDate}T00:00:00&event_type=eq.finished&order=created_at.asc`),
-    fetchTable('weather_logs', `created_at=gte.${fromDate}T00:00:00&report_type=eq.morning&order=created_at.asc`)
-  ]);
-
-  buildMetrics(events, weatherLogs);
-  buildWateringChart(events, days);
-  buildWeatherChart(weatherLogs, days);
-  buildZonesTable(events, days);
-
-  const now = new Date();
-  document.getElementById('last-updated').textContent = 'Updated ' + now.toLocaleTimeString();
-  document.getElementById('footer-time').textContent = now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function buildMetrics(events, weatherLogs) {
-  const today = new Date().toISOString().split('T')[0];
-  const todayEvents = events.filter(e => e.created_at.startsWith(today));
-
-  const totalSeconds = todayEvents.reduce((s, e) => s + (e.duration_seconds || 0), 0);
-  const totalMins = Math.round(totalSeconds / 60);
-  document.getElementById('total-today').textContent = totalMins;
-  document.getElementById('water-liters').textContent = (totalMins * LITERS_PER_MIN).toLocaleString();
-
-  const weekSeconds = events.reduce((s, e) => s + (e.duration_seconds || 0), 0);
-  const weekMins = Math.round(weekSeconds / 60);
-  document.getElementById('water-week').textContent = (weekMins * LITERS_PER_MIN).toLocaleString();
-
-  const zones = [...new Set(todayEvents.map(e => e.zone_name))];
-  document.getElementById('zone-count').textContent = zones.length;
-  document.getElementById('event-count').textContent = todayEvents.length;
-
-  const latest = weatherLogs[weatherLogs.length - 1];
-  if (latest) {
-    document.getElementById('temp-max').textContent = latest.temp_max != null ? latest.temp_max.toFixed(1) : '—';
-    document.getElementById('humidity').textContent = latest.humidity || '—';
-    document.getElementById('tier').textContent = latest.watering_tier || '—';
-    document.getElementById('tier-label').textContent = 'watering advice';
+  document.getElementById('last-updated').textContent = 'Loading report...';
+  const { start, end } = reportState;
+  const queryStart = addDays(start, -1);
+  const queryEndExclusive = addDays(end, 2);
+  try {
+    const [rawEvents, rawWeather] = await Promise.all([
+      fetchAllRows('irrigation_events', `select=created_at,duration_seconds,zone_name,event_type&created_at=gte.${queryStart}T00:00:00Z&created_at=lt.${queryEndExclusive}T00:00:00Z&event_type=eq.finished&order=created_at.asc`),
+      fetchAllRows('weather_logs', `select=created_at,temp_max,temp_min,humidity,watering_tier,report_type&created_at=gte.${queryStart}T00:00:00Z&created_at=lt.${queryEndExclusive}T00:00:00Z&report_type=eq.morning&order=created_at.asc`)
+    ]);
+    const events = rawEvents.filter(e => { const key = eventDateKey(e.created_at); return key >= start && key <= end; });
+    const weatherLogs = rawWeather.filter(e => { const key = eventDateKey(e.created_at); return key >= start && key <= end; });
+    const grouping = getBuckets(start, end);
+    buildMetrics(events, weatherLogs, start, end);
+    buildWateringChart(events, grouping);
+    buildWeatherChart(weatherLogs, grouping);
+    buildZonesTable(events, start, end);
+    updateReportHeading(grouping.mode, events.length, weatherLogs.length);
+    const now = new Date();
+    document.getElementById('last-updated').textContent = 'Updated ' + now.toLocaleTimeString('en-GB');
+    document.getElementById('footer-time').textContent = now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  } catch (error) {
+    console.error(error);
+    document.getElementById('last-updated').textContent = 'Could not load report — try Refresh';
+    document.getElementById('zones-tbody').innerHTML = '<tr><td colspan="5" style="color:var(--orange); padding:1.5rem 0;">Data could not be loaded. Check the connection and try again.</td></tr>';
   }
 }
 
-function buildZonesTable(events, days) {
-  const today = new Date().toISOString().split('T')[0];
-  const todayEvents = events.filter(e => e.created_at.startsWith(today));
-  const zones = [...new Set(events.map(e => e.zone_name))];
+function updateReportHeading(mode, eventCount, weatherCount) {
+  const { start, end } = reportState;
+  const sameYear = start.slice(0, 4) === end.slice(0, 4);
+  const startLabel = formatDate(start, { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
+  const endLabel = formatDate(end, { day: 'numeric', month: 'short', year: 'numeric' });
+  document.getElementById('report-period').textContent = start === end ? endLabel : `${startLabel} – ${endLabel}`;
+  const groupingLabel = { day: 'Daily', week: 'Weekly', month: 'Monthly' }[mode];
+  document.getElementById('report-meta').textContent = `${groupingLabel} view · ${eventCount.toLocaleString()} cycles · ${weatherCount.toLocaleString()} weather reports`;
+  document.getElementById('watering-chart-title').textContent = `${groupingLabel} watering — minutes per zone`;
+}
+
+function buildMetrics(events, weatherLogs, start, end) {
+  const totalSeconds = events.reduce((s, e) => s + (Number(e.duration_seconds) || 0), 0);
+  const totalMins = Math.round(totalSeconds / 60);
+  document.getElementById('total-today').textContent = totalMins;
+  const litres = Math.round(totalSeconds / 60 * LITERS_PER_MIN);
+  document.getElementById('water-liters').textContent = litres.toLocaleString();
+  document.getElementById('water-week').textContent = Math.round(litres / daysBetween(start, end)).toLocaleString();
+  const zones = [...new Set(events.map(e => e.zone_name).filter(Boolean))];
+  document.getElementById('zone-count').textContent = zones.length;
+  document.getElementById('event-count').textContent = events.length.toLocaleString();
+  const temperatures = weatherLogs.map(r => Number(r.temp_max)).filter(Number.isFinite);
+  const humidities = weatherLogs.map(r => Number(r.humidity)).filter(Number.isFinite);
+  document.getElementById('temp-max').textContent = temperatures.length ? Math.max(...temperatures).toFixed(1) : '—';
+  document.getElementById('humidity').textContent = humidities.length ? Math.round(humidities.reduce((a, b) => a + b, 0) / humidities.length) : '—';
+  const latest = weatherLogs[weatherLogs.length - 1];
+  if (latest) {
+    document.getElementById('tier').textContent = latest.watering_tier || '—';
+    document.getElementById('tier-label').textContent = 'latest advice in period';
+  } else {
+    document.getElementById('tier').textContent = '—';
+    document.getElementById('tier-label').textContent = 'no weather report';
+  }
+}
+
+function buildZonesTable(events, start, end) {
+  const zones = [...new Set(events.map(e => e.zone_name).filter(Boolean))];
+  document.getElementById('zones-title').textContent = 'Zone breakdown — selected period';
 
   if (zones.length === 0) {
     document.getElementById('zones-tbody').innerHTML =
-      '<tr><td colspan="5" style="color:var(--text3); padding:1.5rem 0;">No zone activity today.</td></tr>';
+      '<tr><td colspan="5" style="color:var(--text3); padding:1.5rem 0;">No zone activity in this period.</td></tr>';
     return;
   }
 
   const rows = zones.map((zone, i) => {
-    const zoneEvents = todayEvents.filter(e => e.zone_name === zone);
+    const zoneEvents = events.filter(e => e.zone_name === zone);
     const cycles = zoneEvents.length;
-    const totalSecs = zoneEvents.reduce((s, e) => s + (e.duration_seconds || 0), 0);
+    const totalSecs = zoneEvents.reduce((s, e) => s + (Number(e.duration_seconds) || 0), 0);
     const mins = Math.round(totalSecs / 60);
-    const litres = (mins * LITERS_PER_MIN).toLocaleString();
+    const litres = Math.round(totalSecs / 60 * LITERS_PER_MIN).toLocaleString();
     const lastEvent = zoneEvents[zoneEvents.length - 1];
     const lastTime = lastEvent
-      ? new Date(lastEvent.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      ? new Date(lastEvent.created_at).toLocaleString('en-GB', { timeZone: REPORT_TIME_ZONE, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
       : '—';
     const color = ZONE_COLORS[i % ZONE_COLORS.length];
     return `<tr>
-      <td><span class="zone-badge" style="background:${color}"></span>${zone}</td>
+      <td><span class="zone-badge" style="background:${color}"></span>${escapeHtml(zone)}</td>
       <td>${cycles}</td>
       <td>${mins} min</td>
       <td style="color:var(--blue)">${litres} L</td>
@@ -284,37 +431,36 @@ function buildZonesTable(events, days) {
   });
 
   // Totals row
-  const totalMins = zones.reduce((s, zone) => {
-    const secs = todayEvents.filter(e => e.zone_name === zone).reduce((ss, e) => ss + (e.duration_seconds || 0), 0);
-    return s + Math.round(secs / 60);
-  }, 0);
+  const totalSeconds = events.reduce((sum, e) => sum + (Number(e.duration_seconds) || 0), 0);
+  const totalMins = Math.round(totalSeconds / 60);
 
   rows.push(`<tr style="border-top: 0.5px solid var(--border2);">
     <td style="color:var(--text3); font-size:10px; letter-spacing:0.08em;">TOTAL</td>
     <td></td>
     <td style="color:var(--text)">${totalMins} min</td>
-    <td style="color:var(--green)">${(totalMins * LITERS_PER_MIN).toLocaleString()} L</td>
+    <td style="color:var(--green)">${Math.round(totalSeconds / 60 * LITERS_PER_MIN).toLocaleString()} L</td>
     <td></td>
   </tr>`);
 
   document.getElementById('zones-tbody').innerHTML = rows.join('');
 }
 
-function buildWateringChart(events, days) {
+function buildWateringChart(events, grouping) {
   // Group finished events by date and zone, sum duration_seconds
-  const zones = [...new Set(events.map(e => e.zone_name))];
+  const zones = [...new Set(events.map(e => e.zone_name).filter(Boolean))];
 
   const dayTotals = {};
   events.forEach(e => {
-    const day = e.created_at.split('T')[0];
-    if (!dayTotals[day]) dayTotals[day] = {};
-    dayTotals[day][e.zone_name] = (dayTotals[day][e.zone_name] || 0) + (e.duration_seconds || 0);
+    const bucket = bucketForDate(eventDateKey(e.created_at), grouping.buckets);
+    if (!bucket) return;
+    if (!dayTotals[bucket.key]) dayTotals[bucket.key] = {};
+    dayTotals[bucket.key][e.zone_name] = (dayTotals[bucket.key][e.zone_name] || 0) + (Number(e.duration_seconds) || 0);
   });
 
   const datasets = zones.map((zone, i) => ({
     label: zone,
-    data: days.map(day => {
-      const secs = (dayTotals[day] && dayTotals[day][zone]) || 0;
+    data: grouping.buckets.map(bucket => {
+      const secs = (dayTotals[bucket.key] && dayTotals[bucket.key][zone]) || 0;
       return Math.round(secs / 60);
     }),
     borderColor: ZONE_COLORS[i % ZONE_COLORS.length],
@@ -339,8 +485,8 @@ function buildWateringChart(events, days) {
   wateringChartInst = new Chart(document.getElementById('wateringChart'), {
     type: 'line',
     data: {
-      labels: days.map(formatDate),
-      datasets: datasets.length ? datasets : [{ label: 'No data', data: days.map(() => 0), backgroundColor: '#2a2e32' }]
+      labels: grouping.buckets.map(bucket => bucket.label),
+      datasets: datasets.length ? datasets : [{ label: 'No data', data: grouping.buckets.map(() => 0), backgroundColor: '#2a2e32' }]
     },
     options: {
       responsive: true,
@@ -348,7 +494,7 @@ function buildWateringChart(events, days) {
       plugins: { legend: { display: false } },
       scales: {
         x: {
-          ticks: { color: '#555350', font: { family: 'DM Mono', size: 11 }, autoSkip: false },
+          ticks: { color: '#555350', font: { family: 'DM Mono', size: 11 }, autoSkip: true, maxTicksLimit: 16 },
           grid: { display: false },
           border: { color: 'rgba(255,255,255,0.07)' }
         },
@@ -362,20 +508,28 @@ function buildWateringChart(events, days) {
   });
 }
 
-function buildWeatherChart(weatherLogs, days) {
-  const logByDay = {};
-  weatherLogs.forEach(r => { logByDay[r.created_at.split('T')[0]] = r; });
+function buildWeatherChart(weatherLogs, grouping) {
+  const logsByBucket = {};
+  weatherLogs.forEach(r => {
+    const bucket = bucketForDate(eventDateKey(r.created_at), grouping.buckets);
+    if (!bucket) return;
+    if (!logsByBucket[bucket.key]) logsByBucket[bucket.key] = [];
+    logsByBucket[bucket.key].push(r);
+  });
 
   if (weatherChartInst) weatherChartInst.destroy();
 
   weatherChartInst = new Chart(document.getElementById('weatherChart'), {
     type: 'line',
     data: {
-      labels: days.map(formatDate),
+      labels: grouping.buckets.map(bucket => bucket.label),
       datasets: [
         {
           label: 'Max °C',
-          data: days.map(d => logByDay[d] ? logByDay[d].temp_max : null),
+          data: grouping.buckets.map(bucket => {
+            const values = (logsByBucket[bucket.key] || []).map(r => Number(r.temp_max)).filter(Number.isFinite);
+            return values.length ? Math.max(...values) : null;
+          }),
           borderColor: '#e8824a',
           tension: 0.4,
           fill: false,
@@ -386,7 +540,10 @@ function buildWeatherChart(weatherLogs, days) {
         },
         {
           label: 'Min °C',
-          data: days.map(d => logByDay[d] ? logByDay[d].temp_min : null),
+          data: grouping.buckets.map(bucket => {
+            const values = (logsByBucket[bucket.key] || []).map(r => Number(r.temp_min)).filter(Number.isFinite);
+            return values.length ? Math.min(...values) : null;
+          }),
           borderColor: '#4a9ede',
           tension: 0.4,
           fill: false,
@@ -405,7 +562,7 @@ function buildWeatherChart(weatherLogs, days) {
       plugins: { legend: { display: false } },
       scales: {
         x: {
-          ticks: { color: '#555350', font: { family: 'DM Mono', size: 11 }, autoSkip: false },
+          ticks: { color: '#555350', font: { family: 'DM Mono', size: 11 }, autoSkip: true, maxTicksLimit: 16 },
           grid: { display: false },
           border: { color: 'rgba(255,255,255,0.07)' }
         },
@@ -419,6 +576,28 @@ function buildWeatherChart(weatherLogs, days) {
   });
 }
 
+document.querySelectorAll('.period-btn').forEach(btn => btn.addEventListener('click', () => {
+  const range = rangeForPreset(btn.dataset.period);
+  setReportRange(range.start, range.end, btn.dataset.period);
+  loadData();
+}));
+document.getElementById('apply-range').addEventListener('click', () => {
+  const start = document.getElementById('date-from').value;
+  const end = document.getElementById('date-to').value;
+  if (!start || !end || start > end) {
+    document.getElementById('last-updated').textContent = 'Choose a valid start and end date';
+    return;
+  }
+  setReportRange(start, end, 'custom');
+  loadData();
+});
+document.getElementById('previous-period').addEventListener('click', () => shiftPeriod(-1));
+document.getElementById('next-period').addEventListener('click', () => { if (reportState.end < todayKey()) shiftPeriod(1); });
+
+const initialRange = rangeForPreset('7days');
+document.getElementById('date-from').max = todayKey();
+document.getElementById('date-to').max = todayKey();
+setReportRange(initialRange.start, initialRange.end, '7days');
 loadData();
 </script>
 </body>
